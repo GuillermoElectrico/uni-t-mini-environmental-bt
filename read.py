@@ -8,33 +8,43 @@ from datetime import datetime
 import pexpect
 import time
 import os
+import statistics
 import requests
 
-def get_measure(child):
-    child.sendline("char-write-cmd 0x25 5e")
-    time.sleep(.1)
+def get_minute_measure(child):
+    end_time = time.time()+10
+    measures = []
+    while time.time() < end_time:
+        child.sendline("char-write-cmd 0x25 5e")
+        time.sleep(.1)
 
-    child.expect("Notification handle.*", timeout=10)
-    result = child.after.split(b'\r')[0]
+        child.expect("Notification handle.*", timeout=10)
+        result = child.after.split(b'\r')[0]
 
-    value = result.decode('ascii').split('value: ')[1]
-    condensed = value.replace(' ', '')
-    bytemsg = bytes.fromhex(condensed)
+        value = result.decode('ascii').split('value: ')[1]
+        condensed = value.replace(' ', '')
+        bytemsg = bytes.fromhex(condensed)
 
-    # For more information, look at the file
-    # p004cn/com/unitrend/ienv/android/domain/service/BluetoothLeService.java
-    # From the decompiled cn-com-unitrend-ienv APK application
-    assert(bytemsg[4] == 0x3b)  # Uni-T UT353BT noise meter
-    assert(bytemsg[14] == 0x3d)  # dB(A) units
+        # For more information, look at the file
+        # p004cn/com/unitrend/ienv/android/domain/service/BluetoothLeService.java
+        # From the decompiled cn-com-unitrend-ienv APK application
+        assert(bytemsg[4] == 0x3b)  # Uni-T UT353BT noise meter
+        assert(bytemsg[14] == 0x3d)  # dB(A) units
 
-    value = bytemsg[5:]
-    value = value.split(b'=')[0]
-    assert(b'dBA' in value)
-    raw_value = value.split(b'dBA')[0]
+        value = bytemsg[5:]
+        value = value.split(b'=')[0]
+        assert(b'dBA' in value)
+        raw_value = value.split(b'dBA')[0]
 
-    dba_noise = float(raw_value.decode('ascii'))
-#    print(dba_noise)
-    return dba_noise
+        dba_noise = float(raw_value.decode('ascii'))
+#        print(dba_noise)
+        measures.append(dba_noise)
+    return {
+        'min': min(measures),
+        'max': max(measures),
+        'median': statistics.median(measures),
+        'mean': statistics.mean(measures),
+    }
 
 
 def send_stats(stats):
@@ -48,9 +58,7 @@ def send_stats(stats):
                 'meter': "UT353BT",
             },
             'time': t_utc.isoformat() + 'Z',
-            'fields': {
-                "dBA": stats
-            }
+            'fields': stats
         }
     ]
 
@@ -83,7 +91,7 @@ AcError = 0
 try:
     while True:
         try:
-            stats = get_measure(child)
+            stats = get_minute_measure(child)
             if AcError > 0:
                 AcError = AcError - 1
         except Exception as e:
