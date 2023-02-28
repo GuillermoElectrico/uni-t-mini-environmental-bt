@@ -52,11 +52,7 @@ def send_stats(stats):
     t_utc = datetime.utcnow()
     json_body = [
         {
-            'measurement': 'Noise-Meter',
-            'tags': {
-                'id': {DEVICE},
-                'meter': "UT353BT",
-            },
+            'measurement': {DEVICE},
             'time': t_utc.isoformat() + 'Z',
             'fields': stats
         }

@@ -16,7 +16,7 @@ do
 		# is not working 
 		# start script (in this case a python script) 
 		screen -dm bash -c 'python3 /home/pi/uni-t-mini-environmental-bt/read.py'
-		# we wait for it to load 
+		# we wait for it to reload 
 		sleep 10
 	fi
 done
